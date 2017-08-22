@@ -1,2 +1,2 @@
-# dto
-Prototyping shared DTO core
+# Jobilla shared DtoCore
+Prototyping sharing common DtoCore across JobillaWeb and JobillaTarget..
