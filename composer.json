@@ -1,7 +1,7 @@
 {
   "name": "jobilla/dto-core",
   "autoload": {
-    "psr-0" : {
+    "psr-4" : {
       "Jobilla\\DtoCore" : "src"
     }
   }
