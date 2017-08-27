@@ -3,6 +3,7 @@
 namespace Jobilla\DtoCore;
 
 use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
 abstract class DtoAbstract extends Collection
@@ -162,6 +163,19 @@ abstract class DtoAbstract extends Collection
     {
         $dto = new $subtype;
         $dto->setValidationFlag($this->validation);
+
         return $dto->populateFromArray($data)->toArray();
+    }
+
+    /**
+     * @param Model[]|Collection $models
+     *
+     * @return Collection|DtoAbstract[]
+     */
+    public static function populateFromModels(Collection $models): Collection
+    {
+        return $models->map(function (Model $model) {
+            return (new static)->populateFromModel($model);
+        });
     }
 }
