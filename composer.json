@@ -11,8 +11,8 @@
   ],
   "homepage": "https://github.com/jobilla/DtoCore",
   "autoload": {
-    "psr-0": {
-      "Jobilla\\DtoCore": "src"
+    "psr-4" : {
+      "Jobilla\\DtoCore\\" : "src/"
     }
   }
 }
