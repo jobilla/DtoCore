@@ -98,6 +98,25 @@ abstract class DtoAbstract extends Collection
     }
 
     /**
+     * @param string           $dtoClass
+     * @param Collection|Model $models
+     *
+     * @return array|null
+     */
+    protected function populateSubtype(string $dtoClass, $models)
+    {
+        if ($models instanceof Collection) {
+            return $models->map(function (Model $model) use ($dtoClass) {
+                return (new $dtoClass)->populateFromModel($model)->toArray();
+            })->toArray();
+        } elseif ($models instanceof Model) {
+            return (new $dtoClass)->populateFromModel($models)->toArray();
+        }
+
+        return null;
+    }
+
+    /**
      * Validate DTO by rules defined in $rules
      *
      * @return Validator
