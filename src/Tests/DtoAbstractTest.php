@@ -49,7 +49,7 @@ class DtoAbstractTest extends TestCase
 
     /**
      * @test
-     * @covers ::populateFromArray
+     * @covers ::fromArray
      * @covers ::populateSubtypeFromArray
      */
     public function populate_from_array_sets_correct_subtype()
