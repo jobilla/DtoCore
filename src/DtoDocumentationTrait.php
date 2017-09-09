@@ -49,6 +49,9 @@ trait DtoDocumentationTrait
                         case 'date':
                             $type = 'date';
                             break;
+                        case 'array':
+                            $type = 'array';
+                            break;
                         default:
                             $type = 'string';
                     }

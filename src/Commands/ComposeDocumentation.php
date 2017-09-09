@@ -2,6 +2,8 @@
 
 namespace Jobilla\DtoCore\Commands;
 
+use Illuminate\Support\Collection;
+use Jobilla\DtoCore\Dto\v1\Documentation\Documentation;
 use Jobilla\DtoCore\DtoAbstract;
 use Illuminate\Routing\Route;
 
@@ -13,7 +15,7 @@ class ComposeDocumentation
     protected $header = [];
 
     /**
-     * @var array
+     * @var Collection
      */
     protected $routes = [];
 
@@ -42,10 +44,16 @@ class ComposeDocumentation
         $this->createTags();
         $this->createTagGroups();
 
-        $structure          = $this->header;
-        $structure['paths'] = collect($this->routes)->sort()->map(function ($route) {
-            return [$route['method'] => $this->getMethodMetaData($route)];
-        });
+        $structure = $this->createHeader();
+        $structure = $this->header;
+
+        foreach ($this->routes as $route) {
+            if (!isset($structure['paths'][$route['path']])) {
+                $structure['paths'][$route['path']] = [];
+            }
+
+            $structure['paths'][$route['path']][$route['method']] = $this->getMethodMetaData($route);
+        }
 
         $structure['definitions'] = $this->definitions;
         $structure['tags']        = $this->tags;
@@ -62,48 +70,57 @@ class ComposeDocumentation
             'produces'    => ['application/json'],
             'host'        => strtr(env('APP_URL'), ['http://' => '', 'https://' => '']),
             'info'        => [
-                'version'     => 'v1',
-                'title'       => 'Dynamely API',
-                'description' => 'Dynamely API documentation and endpoint reference'
+                'version'     => 'v2',
+                'title'       => 'API',
+                'description' => 'API documentation and endpoint reference',
             ],
             'tags'        => [],
             'x-tagGroups' => [],
             'paths'       => [],
-            'definitions' => []
+            'definitions' => [],
         ];
     }
 
     protected function createRoutes()
     {
-        $this->routes = collect(\Route::getRoutes())->mapWithKeys(function (Route $route) {
-            if (strpos($route->getPath(), 'api/v1/') !== 0) {
-                return null;
-            }
+        $this->routes = collect(\Route::getRoutes())
+            ->map(function (Route $route) {
+                return $this->getRoute($route);
+            })->filter()->sort();
+    }
 
-            if ($route->getPath() == 'api/v1/documentation') {
-                return null;
-            }
+    /**
+     * @param Route $route
+     *
+     * @return array|null
+     */
+    function getRoute(Route $route)
+    {
+        if (strpos($route->getPath(), 'api/v2/') !== 0) {
+            return null;
+        }
 
-            $path     = '/' . $route->getPath();
-            $methods  = $route->getMethods();
-            $methods  = collect($methods)->diff(['HEAD']);
-            $method   = strtolower($methods->first());
-            $action   = substr($route->getActionName(), strpos($route->getActionName(), '@') + 1);
-            $category = substr($path, strlen('/api/v1/'));
+        if (strpos($route->getPath(), 'api/v2/docs') === 0) {
+            return null;
+        }
 
-            strpos($category, '/') && $category = substr($category, 0, strpos($category, '/'));
+        $path     = '/' . $route->getPath();
+        $methods  = $route->getMethods();
+        $methods  = collect($methods)->diff(['HEAD']);
+        $method   = strtolower($methods->first());
+        $action   = substr($route->getActionName(), strpos($route->getActionName(), '@') + 1);
+        $category = substr($path, strlen('/api/v2/'));
 
-            return [
-                $path => [
-                    'path'       => $path,
-                    'method'     => $method,
-                    'route'      => $route->getPath(),
-                    'controller' => get_class($route->getController()),
-                    'action'     => $action,
-                    'category'   => $category
-                ]
-            ];
-        })->filter()->sort()->toArray();
+        strpos($category, '/') && $category = substr($category, 0, strpos($category, '/'));
+
+        return [
+            'path'       => $path,
+            'method'     => $method,
+            'route'      => $route->getPath(),
+            'controller' => get_class($route->getController()),
+            'action'     => $action,
+            'category'   => $category,
+        ];
     }
 
     protected function createTags()
@@ -114,7 +131,7 @@ class ComposeDocumentation
             $category = $route['category'];
 
             $tags[$category] = [
-                'name' => $category
+                'name' => $category,
             ];
         }
 
@@ -126,7 +143,7 @@ class ComposeDocumentation
     {
         $this->tagGroups[] = [
             'name' => 'API Endpoints',
-            'tags' => collect($this->tags)->pluck('name')
+            'tags' => collect($this->tags)->pluck('name'),
         ];
     }
 
@@ -145,7 +162,7 @@ class ComposeDocumentation
             'summary'     => $route['path'],
             'description' => null,
             'parameters'  => [],
-            'responses'   => []
+            'responses'   => [],
         ];
 
         // Read title
@@ -177,22 +194,22 @@ class ComposeDocumentation
             } elseif (strpos($docBlock[$index], '@output') === 0) {
                 $schema = $this->getIoParameter($docBlock[$index]);
                 if (isset($schema['schema']['$ref'])) {
-                    $return['response'][200] = $schema;
+                    $return['responses'][200] = $schema;
                 } else {
                     $return['responses'][200] = [
                         'description' => 'Successful response',
                         'schema'      => [
                             'title'    => $schema['name'],
                             'type'     => $schema['schema']['type'],
-                            'required' => true
+                            'required' => true,
                         ],
                         'examples'    => [
                             'application/json' => [
                                 'data' => [
-                                    $schema['name'] => $this->getExampleTypeValue($schema['schema']['type'])
-                                ]
-                            ]
-                        ]
+                                    $schema['name'] => $this->getExampleTypeValue($schema['schema']['type']),
+                                ],
+                            ],
+                        ],
                     ];
                 }
             } else {
@@ -233,23 +250,23 @@ class ComposeDocumentation
     {
         $parts = explode(' ', $parameter);
         $type  = substr($parts[1], 0, 1) == '\\' ? 'DTO' : $parts[1];
-        $name  = $type == 'DTO' ? $parts[1] : $parts[2];
+        $name  = $type == 'DTO' ? $parts[1] : ($parts[2] ?? 'unnamed');
 
         if ($type == 'DTO') {
             $this->createDtoDefinition($parts[1]);
             $docs = [
                 'description' => 'Response DTO ' . $this->fqcnToName($parts[1]),
                 'schema'      => [
-                    '$ref' => '#/definitions/' . $this->fqcnToDefinitionName($parts[1])
-                ]
+                    '$ref' => '#/definitions/' . $this->fqcnToDefinitionName($parts[1]),
+                ],
             ];
         } else {
             $docs = [
                 'name'     => $name,
                 'required' => true,
                 'schema'   => [
-                    'type' => $type
-                ]
+                    'type' => $type,
+                ],
             ];
         }
 
@@ -307,6 +324,9 @@ class ComposeDocumentation
                 break;
             case 'boolean':
                 return true;
+                break;
+            case 'array':
+                return [];
                 break;
             default:
                 return 'string';
