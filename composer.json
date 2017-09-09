@@ -1,5 +1,15 @@
 {
   "name": "jobilla/dto-core",
+  "description": "Official Jobilla DtoCore for Laravel applications.",
+  "keywords": [
+    "jobilla",
+    "dto",
+    "dto-core",
+    "transformer",
+    "resource",
+    "laravel"
+  ],
+  "homepage": "https://github.com/jobilla/DtoCore",
   "autoload": {
     "psr-4" : {
       "Jobilla\\DtoCore\\" : "src/"
