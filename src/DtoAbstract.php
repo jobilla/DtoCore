@@ -6,21 +6,59 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
+/**
+ * DTO Abstract class
+ *
+ * Concrete DTO classes should extend this class.
+ *
+ * Minimal DTO class:
+ *
+ * ```
+ * class CompanyDto extends DtoAbstract {
+ *   protected $items = ['id' => null, 'name' => null];
+ *   protected $rules = ['id' => 'int|nullable|in:companies', 'name' => 'string|nullable|max:100'];
+ * }
+ * ```
+ */
 abstract class DtoAbstract extends Collection
 {
     use DtoDocumentationTrait;
 
+    /**
+     * DTO-s fields default date and datetime formats
+     */
     const DATE_FORMAT     = 'Y-m-d';
     const DATETIME_FORMAT = 'Y-m-d H:i:s';
 
     /**
-     * Define keys of sub-DTO-s here
+     * DTO fields
+     *
+     * Provide default field values in concrete class items array.
+     *
+     *  - For a subtype, the field value must be `null`.
+     *  - For an array of subtypes, the field value must be `[]`.
+     *
+     * @var array
+     */
+    protected $items = [];
+
+    /**
+     * Field-to-subtype map
+     *
+     * ```
+     * [
+     *   'company' => CompanyDto::class,
+     *   'articles' => ArticleDto::class,
+     * ]
+     * ```
      *
      * @var array
      */
     protected $subtypes = [];
 
     /**
+     * Laravel Validation compatible rules
+     *
      * @var array
      */
     protected $rules = [];
@@ -41,6 +79,10 @@ abstract class DtoAbstract extends Collection
     }
 
     /**
+     * Get subtype class
+     *
+     * Return null if subtype is not defined.
+     *
      * @param string $field
      *
      * @return string|bool
@@ -63,14 +105,6 @@ abstract class DtoAbstract extends Collection
     }
 
     /**
-     * @return bool
-     */
-    public function isValidation(): bool
-    {
-        return $this->validation;
-    }
-
-    /**
      * Validate DTO by rules defined in $rules
      *
      * @return Validator
@@ -81,15 +115,7 @@ abstract class DtoAbstract extends Collection
         $validator = \Validator::make($this->items, $this->rules);
 
         if ($validator->fails()) {
-            $exception = new ValidatorException(sprintf(
-                'DTO Validation failed for %s. Messages: %s',
-                get_called_class(),
-                $validator->getMessageBag()->toJson()
-            ));
-            $exception->setValidator($validator);
-            $exception->setTitle(sprintf('DTO Validation failed for %s', get_called_class()));
-            $exception->setMessages($validator->getMessageBag()->toArray());
-            throw $exception;
+            $this->throwValidationException($validator);
         }
 
         return $validator;
@@ -105,7 +131,7 @@ abstract class DtoAbstract extends Collection
         /** @var DtoAbstract $dto */
         $dto = (new static)->populateFromModel($model);
 
-        $dto->isValidation() && $dto->validate();
+        $dto->validate();
 
         return $dto;
     }
@@ -149,12 +175,27 @@ abstract class DtoAbstract extends Collection
                 $dto[$key] = $value;
             });
 
-        $dto->isValidation() && $dto->validate();
+        $dto->validate();
 
         return $dto;
     }
 
     /**
+     * DTO factory method
+     *
+     * Create new DTO instances, and populate them depending on $source type.
+     *
+     * Accepts:
+     *
+     *   - Collection of Model instances - return a Collection of populated DTO instances
+     *   - Model instance - return and populate a DTO instance
+     *   - Array of data - return and populate a DTO instance
+     *
+     * Provide default return value, an empty Collection instance, to accommodate
+     * for sub-DTO's generation, with `$this['company'] = CompanyDto::from($page->companies)->toArray();`.
+     * In this case, the `from` call always returns an instance of Collection (Collection of DTO-s,
+     * one DTO, or an empty Collection), which can always be converted to an array for the subtype value.
+     *
      * @param Model|Collection|Model[]|array $source
      *
      * @return $this|Collection|$this[]
@@ -170,5 +211,30 @@ abstract class DtoAbstract extends Collection
         }
 
         return collect();
+    }
+
+    /**
+     * Throw validation exception
+     *
+     * Include list of failures for each field, in machine-parseable format.
+     *
+     * @param $validator
+     *
+     * @throws ValidatorException
+     */
+    protected function throwValidationException(Validator $validator): void
+    {
+        $message = sprintf(
+            'DTO Validation failed for %s. Messages: %s',
+            get_called_class(),
+            $validator->getMessageBag()->toJson()
+        );
+
+        $exception = new ValidatorException($message);
+        $exception->setValidator($validator);
+        $exception->setTitle(sprintf('DTO Validation failed for %s', get_called_class()));
+        $exception->setMessages($validator->getMessageBag()->toArray());
+
+        throw $exception;
     }
 }
