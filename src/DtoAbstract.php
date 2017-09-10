@@ -122,9 +122,11 @@ abstract class DtoAbstract extends Collection
     }
 
     /**
+     * Init, populate and validate a DTO from model instance
+     *
      * @param Model $model
      *
-     * @return mixed
+     * @return DtoAbstract
      */
     public static function fromModel(Model $model): DtoAbstract
     {
@@ -137,6 +139,8 @@ abstract class DtoAbstract extends Collection
     }
 
     /**
+     * Init, populate and validate a Collection of DTO-s from a Collection of model instances
+     *
      * @param Model[]|Collection $models
      *
      * @return Collection|$self[]
@@ -149,7 +153,7 @@ abstract class DtoAbstract extends Collection
     }
 
     /**
-     * Populate DTO and sub-DTO-s from data array
+     * Init, populate and validate a DTO and sub-DTO-s from data array
      *
      * - Can be used in controllers, to fill from Request::all()
      * - Only sets values for keys that are predefined in DTO
@@ -218,7 +222,7 @@ abstract class DtoAbstract extends Collection
      *
      * Include list of failures for each field, in machine-parseable format.
      *
-     * @param $validator
+     * @param Validator $validator
      *
      * @throws ValidatorException
      */
