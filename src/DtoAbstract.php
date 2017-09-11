@@ -6,21 +6,59 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
 
+/**
+ * DTO Abstract class
+ *
+ * Concrete DTO classes should extend this class.
+ *
+ * Minimal DTO class:
+ *
+ * ```
+ * class CompanyDto extends DtoAbstract {
+ *   protected $items = ['id' => null, 'name' => null];
+ *   protected $rules = ['id' => 'int|nullable|in:companies', 'name' => 'string|nullable|max:100'];
+ * }
+ * ```
+ */
 abstract class DtoAbstract extends Collection
 {
     use DtoDocumentationTrait;
 
+    /**
+     * DTO-s fields default date and datetime formats
+     */
     const DATE_FORMAT     = 'Y-m-d';
     const DATETIME_FORMAT = 'Y-m-d H:i:s';
 
     /**
-     * Define keys of sub-DTO-s here
+     * DTO fields
+     *
+     * Provide default field values in concrete class items array.
+     *
+     *  - For a subtype, the field value must be `null`.
+     *  - For an array of subtypes, the field value must be `[]`.
+     *
+     * @var array
+     */
+    protected $items = [];
+
+    /**
+     * Field-to-subtype map
+     *
+     * ```
+     * [
+     *   'company' => CompanyDto::class,
+     *   'articles' => ArticleDto::class,
+     * ]
+     * ```
      *
      * @var array
      */
     protected $subtypes = [];
 
     /**
+     * Laravel Validation compatible rules
+     *
      * @var array
      */
     protected $rules = [];
@@ -41,79 +79,29 @@ abstract class DtoAbstract extends Collection
     }
 
     /**
-     * Populate DTO and sub-DTO-s with given data
+     * Get subtype class
      *
-     * Only sets values for keys that are predefined in DTO.
+     * Return null if subtype is not defined.
      *
-     * @param array $data
+     * @param string $field
      *
-     * @return $this
-     * @throws \Exception
+     * @return string|bool
      */
-    public function populateFromArray(array $data)
+    public function getSubtype(string $field)
     {
-        collect(array_intersect_key($data, $this->items))
-            ->filter(function ($value) {
-                return $value !== null && !empty($value);
-            })
-            ->map(function ($value, $key) {
-                if (isset($this->subtypes[$key])) {
-                    $this->populateSubtypeFromArray($key, $value);
-                } else {
-                    $this->items[$key] = $value;
-                }
-            });
-
-        $this->validation && $this->validate();
-
-        return $this;
+        return $this->subtypes[$field] ?? false;
     }
 
     /**
-     * @param string $key
-     * @param array  $data
+     * Turn validation off
      *
      * @return $this
-     * @throws \Exception
      */
-    protected function populateSubtypeFromArray(string $key, $data)
+    public function noValidation()
     {
-        if (!is_array($data)) {
-            throw new \Exception(
-                sprintf('Dto item %s::%s in input data must be an array', static::class, $key)
-            );
-        }
-
-        $subtype = $this->subtypes[$key];
-
-        if ($this->isArrayOfSubtypes($key)) {
-            foreach ($data as $subtypeData) {
-                $this->items[$key][] = $this->createSubtype($subtype, $subtypeData);
-            }
-        } else {
-            $this->items[$key] = $this->createSubtype($subtype, $data);
-        }
+        $this->validation = false;
 
         return $this;
-    }
-
-    /**
-     * @param string           $dtoClass
-     * @param Collection|Model $models
-     *
-     * @return array|null
-     */
-    protected function populateSubtype(string $dtoClass, $models)
-    {
-        if ($models instanceof Collection) {
-            return $models->map(function (Model $model) use ($dtoClass) {
-                return (new $dtoClass)->populateFromModel($model)->toArray();
-            })->toArray();
-        } elseif ($models instanceof Model) {
-            return (new $dtoClass)->populateFromModel($models)->toArray();
-        }
-
-        return null;
     }
 
     /**
@@ -127,74 +115,130 @@ abstract class DtoAbstract extends Collection
         $validator = \Validator::make($this->items, $this->rules);
 
         if ($validator->fails()) {
-            $exception = new ValidatorException(sprintf(
-                'DTO Validation failed for %s. Messages: %s',
-                get_called_class(),
-                $validator->getMessageBag()->toJson()
-            ));
-            $exception->setValidator($validator);
-            $exception->setTitle(sprintf('DTO Validation failed for %s', get_called_class()));
-            $exception->setMessages($validator->getMessageBag()->toArray());
-            throw $exception;
+            $this->throwValidationException($validator);
         }
 
         return $validator;
     }
 
     /**
-     * turn validation off
+     * Init, populate and validate a DTO from model instance
      *
-     * @return $this
-     */
-    public function noValidation()
-    {
-        $this->setValidationFlag(false);
-
-        return $this;
-    }
-
-    /**
-     * @param bool $flag
-     */
-    protected function setValidationFlag(bool $flag)
-    {
-        $this->validation = $flag;
-    }
-
-    /**
-     * @param array $data
+     * @param Model $model
      *
-     * @return bool
+     * @return DtoAbstract
      */
-    protected function isArrayOfSubtypes($key): bool
+    public static function fromModel(Model $model): DtoAbstract
     {
-        // will not work if dto gets updated (dtos are only meant to be populated once)
-        return is_array($this->items[$key]);
+        /** @var DtoAbstract $dto */
+        $dto = (new static)->populateFromModel($model);
+
+        $dto->validate();
+
+        return $dto;
     }
 
     /**
-     * @param string $subtype
-     * @param array  $data
+     * Init, populate and validate a Collection of DTO-s from a Collection of model instances
      *
-     * @return array
-     */
-    protected function createSubtype(string $subtype, array $data): array
-    {
-        $dto = new $subtype;
-        $dto->setValidationFlag($this->validation);
-
-        return $dto->populateFromArray($data)->toArray();
-    }
-
-    /**
      * @param Model[]|Collection $models
      *
-     * @return Collection|DtoAbstract[]
+     * @return Collection|$self[]
      */
-    public static function populateFromModels(Collection $models): Collection
+    public static function fromModels(Collection $models): Collection
     {
         return $models->map(function (Model $model) {
-            return (new static)->populateFromModel($model);
+            return static::fromModel($model);
         });
+    }
+
+    /**
+     * Init, populate and validate a DTO and sub-DTO-s from data array
+     *
+     * - Can be used in controllers, to fill from Request::all()
+     * - Only sets values for keys that are predefined in DTO
+     *
+     * @param array $data
+     *
+     * @return $this
+     * @throws \Exception
+     */
+    public static function fromArray(array $data): DtoAbstract
+    {
+        $dto = new static;
+
+        collect(array_intersect_key($data, $dto->toArray()))
+            ->filter(function ($value) {
+                return $value !== null && !empty($value);
+            })
+            ->map(function ($value, $key) use ($dto) {
+                if (is_array($value) && $dto->getSubtype($key)) {
+                    $value = $dto->getSubtype($key)::from($value)->toArray();
+                }
+
+                $dto[$key] = $value;
+            });
+
+        $dto->validate();
+
+        return $dto;
+    }
+
+    /**
+     * DTO factory method
+     *
+     * Create new DTO instances, and populate them depending on $source type.
+     *
+     * Accepts:
+     *
+     *   - Collection of Model instances - return a Collection of populated DTO instances
+     *   - Model instance - return and populate a DTO instance
+     *   - Array of data - return and populate a DTO instance
+     *
+     * Provide default return value, an empty Collection instance, to accommodate
+     * for sub-DTO's generation, with `$this['company'] = CompanyDto::from($page->companies)->toArray();`.
+     * In this case, the `from` call always returns an instance of Collection (Collection of DTO-s,
+     * one DTO, or an empty Collection), which can always be converted to an array for the subtype value.
+     *
+     * @param Model|Collection|Model[]|array $source
+     *
+     * @return $this|Collection|$this[]
+     */
+    public static function from($source)
+    {
+        if ($source instanceof Collection) {
+            return static::fromModels($source);
+        } elseif ($source instanceof Model) {
+            return static::fromModel($source);
+        } elseif (is_array($source)) {
+            return static::fromArray($source);
+        }
+
+        return collect();
+    }
+
+    /**
+     * Throw validation exception
+     *
+     * Include list of failures for each field, in machine-parseable format.
+     *
+     * @param Validator $validator
+     *
+     * @throws ValidatorException
+     */
+    protected function throwValidationException(Validator $validator): void
+    {
+        $message = sprintf(
+            'DTO Validation failed for %s. Messages: %s',
+            get_called_class(),
+            $validator->getMessageBag()->toJson()
+        );
+
+        $exception = new ValidatorException($message);
+        $exception->setValidator($validator);
+        $exception->setTitle(sprintf('DTO Validation failed for %s', get_called_class()));
+        $exception->setMessages($validator->getMessageBag()->toArray());
+
+        throw $exception;
     }
 }

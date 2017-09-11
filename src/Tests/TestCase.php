@@ -17,11 +17,6 @@ abstract class TestCase extends RootTestCase
     protected $filledKeys = [];
 
     /**
-     * @return DtoAbstract
-     */
-    abstract protected function dtoProvider(): DtoAbstract;
-
-    /**
      * @return Model
      */
     abstract protected function modelProvider();
@@ -31,16 +26,8 @@ abstract class TestCase extends RootTestCase
      */
     public function populates_from_model()
     {
-        $dto = $this->dtoProvider();
-        $dto->populateFromModel($this->modelProvider());
-
-        $this->assertFalse($dto->validate()->fails());
-
-        $array = $dto->toArray();
-
-        foreach ($this->filledKeys as $key) {
-            $this->assertNotNull($array[$key], "Key $key should not be null");
-        }
+        $dto = (static::DTO)::from($this->modelProvider());
+        $this->assertDtoFields($dto);
     }
 
     /**
@@ -48,18 +35,22 @@ abstract class TestCase extends RootTestCase
      */
     public function populates_from_array()
     {
-        $dto = $this->dtoProvider();
-        $dto->populateFromModel($this->modelProvider());
-        $array = $dto->toArray();
+        $inputArray = (static::DTO)::from($this->modelProvider())->toArray();
+        $dto        = (static::DTO)::from($inputArray);
 
-        $dto = $this->dtoProvider();
-        $dto->populateFromArray($array);
+        $this->assertSame($inputArray, $dto->toArray());
+        $this->assertDtoFields($dto);
+    }
 
+    /**
+     * @param DtoAbstract $dto
+     */
+    private function assertDtoFields(DtoAbstract $dto)
+    {
         $this->assertFalse($dto->validate()->fails());
-        $this->assertSame($array, $dto->toArray());
 
         foreach ($this->filledKeys as $key) {
-            $this->assertNotNull($array[$key]);
+            $this->assertNotNull($dto[$key], "Key $key should not be null");
         }
     }
 }
