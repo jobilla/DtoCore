@@ -104,6 +104,10 @@ class ComposeDocumentation
             return null;
         }
 
+        if (strpos($route->getActionName(), '@') === false) {
+            return null;
+        }
+
         $path     = '/' . $route->getPath();
         $methods  = $route->getMethods();
         $methods  = collect($methods)->diff(['HEAD']);
