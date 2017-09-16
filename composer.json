@@ -14,5 +14,8 @@
     "psr-4" : {
       "Jobilla\\DtoCore\\" : "src/"
     }
+  },
+  "require": {
+    "laravel/framework": "^5.5"
   }
 }

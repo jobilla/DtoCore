@@ -173,7 +173,7 @@ abstract class DtoAbstract extends Collection
             })
             ->map(function ($value, $key) use ($dto) {
                 if (is_array($value) && $dto->getSubtype($key)) {
-                    $value = $dto->getSubtype($key)::from($value)->toArray();
+                    $value = self::subtypeFromArray($value, $key, $dto);
                 }
 
                 $dto[$key] = $value;
@@ -182,6 +182,32 @@ abstract class DtoAbstract extends Collection
         $dto->validate();
 
         return $dto;
+    }
+
+    /**
+     * Populate subtype(s) from array, and return the toArray() of subtype(s)
+     *
+     * Subtypes in DTO-s can be defined as an array of subtype objects, or as one subtype object.
+     *
+     * This method detects if DTO subtype is an array of subtypes, or just one subtype.
+     * After populating the subtype(s) from array(s), the toArray() of one subtype DTO is returned,
+     * or an array of subtype DTO-s toArray()-s.
+     *
+     * @param array       $value
+     * @param string      $key
+     * @param DtoAbstract $dto
+     *
+     * @return array
+     */
+    private static function subtypeFromArray(array $value, string $key, DtoAbstract $dto): array
+    {
+        if (is_array($dto[$key])) {
+            return collect($value)->map(function (array $values) use ($dto, $key) {
+                return $dto->getSubtype($key)::from($values)->toArray();
+            })->toArray();
+        }
+
+        return $dto->getSubtype($key)::from($value)->toArray();
     }
 
     /**
