@@ -53,8 +53,7 @@ class Company extends DtoAbstract
         // etc...
         $this['meta_keywords']    = $company->meta_keywords;
         $this['meta_description'] = $company->meta_description;
-        $this['location']         = $company->city ?
-            (new Location)->populateFromModel($company->city)->toArray() : null;
+        $this['location']         = Location::from($company->city)->toArray();
         // etc..
 
         // Check for validation flag & self-validate on instantiation
@@ -62,9 +61,6 @@ class Company extends DtoAbstract
 
         return $this;
     }
-    
-    // Add optional population methods
-    // populateFromArray() occurs often, and takes in $request->all() directly within Controllers.
 }
 
 ```
@@ -84,8 +80,7 @@ Use for validating both incoming and outgoing Requests in Controllers (or implem
      */
     public function show(int $id)
     {
-        $dto = new CompanyDto;
-        $dto->populateFromModel(Company::findOrFail($id));
+        $dto = CompanyDto::from(Company::findOrFail($id));
 
         return $this->response->respondDto($dto);
     }
@@ -102,15 +97,13 @@ Use for validating both incoming and outgoing Requests in Controllers (or implem
      */
     public function store(Request $request)
     {
-        $dto = new CompanyDto;
-        $dto->populateFromArray($request->all());
-
+        $dto     = CompanyDto::from($request->all());
         $company = CompanyRepository::store($dto);
 
         return $this->show($company->id);
     }
 ```
-**NOTE: @input & @output declarations in the docblocks allow automatic OpeAPI documentation generation..**
+**NOTE: @input & @output declarations in the docblocks allow automatic OpenAPI documentation generation..**
 
 For automatic OpenAPI format (formerly known as Swagger) documentation, call `ComposeDocumentation` Command from the Library, and return the structure of `ComposeDocumentation::get()` from the proper route for inspection.
 
