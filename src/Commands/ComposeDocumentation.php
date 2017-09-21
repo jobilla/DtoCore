@@ -193,6 +193,12 @@ class ComposeDocumentation
                 } else {
                     $schema['in']   = 'formData';
                     $schema['type'] = $schema['schema']['type'];
+
+                    if ($schema['type'] == 'array' && !isset($schema['items'])) {
+                        $schema['items'] = [
+                            'type' => str_replace('_ids', '_id', $schema['name']),
+                        ];
+                    }
                 }
                 $return['parameters'][] = $schema;
             } elseif (strpos($docBlock[$index], '@output') === 0) {
