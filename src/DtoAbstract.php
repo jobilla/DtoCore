@@ -4,6 +4,7 @@ namespace Jobilla\DtoCore;
 
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
 /**
@@ -165,23 +166,31 @@ abstract class DtoAbstract extends Collection
      */
     public static function fromArray(array $data): DtoAbstract
     {
-        $dto = new static;
+        return (new static)->populateFromArray($data);
+    }
 
-        collect(array_intersect_key($data, $dto->toArray()))
+    /**
+     * @param array $data
+     *
+     * @return $this
+     */
+    public function populateFromArray(array $data)
+    {
+        collect(array_intersect_key($data, $this->toArray()))
             ->filter(function ($value) {
                 return $value !== null && !empty($value);
             })
-            ->map(function ($value, $key) use ($dto) {
-                if (is_array($value) && $dto->getSubtype($key)) {
-                    $value = self::subtypeFromArray($value, $key, $dto);
+            ->map(function ($value, $key) {
+                if (is_array($value) && $this->getSubtype($key)) {
+                    $value = self::subtypeFromArray($value, $key, $this);
                 }
 
-                $dto[$key] = $value;
+                $this[$key] = $value;
             });
 
-        $dto->validate();
+        $this->validate();
 
-        return $dto;
+        return $this;
     }
 
     /**
