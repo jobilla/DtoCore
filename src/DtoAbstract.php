@@ -4,7 +4,6 @@ namespace Jobilla\DtoCore;
 
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
 /**
@@ -94,67 +93,7 @@ abstract class DtoAbstract extends Collection
     }
 
     /**
-     * Turn validation off
-     *
-     * @return $this
-     */
-    public function noValidation()
-    {
-        $this->validation = false;
-
-        return $this;
-    }
-
-    /**
-     * Validate DTO by rules defined in $rules
-     *
-     * @return Validator
-     * @throws ValidatorException
-     */
-    public function validate(): Validator
-    {
-        $validator = \Validator::make($this->items, $this->rules);
-
-        if ($validator->fails()) {
-            $this->throwValidationException($validator);
-        }
-
-        return $validator;
-    }
-
-    /**
-     * Init, populate and validate a DTO from model instance
-     *
-     * @param Model $model
-     *
-     * @return DtoAbstract
-     */
-    public static function fromModel(Model $model): DtoAbstract
-    {
-        /** @var DtoAbstract $dto */
-        $dto = (new static)->populateFromModel($model);
-
-        $dto->validate();
-
-        return $dto;
-    }
-
-    /**
-     * Init, populate and validate a Collection of DTO-s from a Collection of model instances
-     *
-     * @param Model[]|Collection $models
-     *
-     * @return Collection|$self[]
-     */
-    public static function fromModels(Collection $models): Collection
-    {
-        return $models->map(function (Model $model) {
-            return static::fromModel($model);
-        });
-    }
-
-    /**
-     * Init, populate and validate a DTO and sub-DTO-s from data array
+     * Populate and validate a DTO and sub-DTO-s from data array
      *
      * - Can be used in controllers, to fill from Request::all()
      * - Only sets values for keys that are predefined in DTO
@@ -164,17 +103,7 @@ abstract class DtoAbstract extends Collection
      * @return $this
      * @throws \Exception
      */
-    public static function fromArray(array $data): DtoAbstract
-    {
-        return (new static)->populateFromArray($data);
-    }
-
-    /**
-     * @param array $data
-     *
-     * @return $this
-     */
-    public function populateFromArray(array $data)
+    public function populateFromArray(array $data): DtoAbstract
     {
         collect(array_intersect_key($data, $this->toArray()))
             ->filter(function ($value) {
@@ -182,13 +111,13 @@ abstract class DtoAbstract extends Collection
             })
             ->map(function ($value, $key) {
                 if (is_array($value) && $this->getSubtype($key)) {
-                    $value = self::subtypeFromArray($value, $key, $this);
+                    $value = $this->populateSubtypeFromArray($key, $value);
                 }
 
                 $this[$key] = $value;
             });
 
-        $this->validate();
+        $this->validation && $this->validate();
 
         return $this;
     }
@@ -202,21 +131,20 @@ abstract class DtoAbstract extends Collection
      * After populating the subtype(s) from array(s), the toArray() of one subtype DTO is returned,
      * or an array of subtype DTO-s toArray()-s.
      *
-     * @param array       $value
-     * @param string      $key
-     * @param DtoAbstract $dto
+     * @param string $key
+     * @param array  $value
      *
      * @return array
      */
-    private static function subtypeFromArray(array $value, string $key, DtoAbstract $dto): array
+    private function populateSubtypeFromArray(string $key, array $value): array
     {
-        if (is_array($dto[$key])) {
-            return collect($value)->map(function (array $values) use ($dto, $key) {
-                return $dto->getSubtype($key)::from($values)->toArray();
+        if (is_array($this[$key])) {
+            return collect($value)->map(function (array $values) use ($key) {
+                return (new $this->subtypes[$key])->populateFromArray($values)->toArray();
             })->toArray();
         }
 
-        return $dto->getSubtype($key)::from($value)->toArray();
+        return (new $this->subtypes[$key])->populateFromArray($value)->toArray();
     }
 
     /**
@@ -242,14 +170,33 @@ abstract class DtoAbstract extends Collection
     public static function from($source)
     {
         if ($source instanceof Collection) {
-            return static::fromModels($source);
+            return $source->map(function (Model $model) {
+                return (new static)->populateFromModel($model);
+            });
         } elseif ($source instanceof Model) {
-            return static::fromModel($source);
+            return (new static)->populateFromModel($source);
         } elseif (is_array($source)) {
-            return static::fromArray($source);
+            return (new static)->populateFromArray($source);
         }
 
         return collect();
+    }
+
+    /**
+     * Validate DTO by rules defined in $rules
+     *
+     * @return Validator
+     * @throws ValidatorException
+     */
+    public function validate(): Validator
+    {
+        $validator = \Validator::make($this->items, $this->rules);
+
+        if ($validator->fails()) {
+            $this->throwValidationException($validator);
+        }
+
+        return $validator;
     }
 
     /**
@@ -275,5 +222,17 @@ abstract class DtoAbstract extends Collection
         $exception->setMessages($validator->getMessageBag()->toArray());
 
         throw $exception;
+    }
+
+    /**
+     * @param bool $validation
+     *
+     * @return DtoAbstract
+     */
+    public function setValidation(bool $validation): DtoAbstract
+    {
+        $this->validation = $validation;
+
+        return $this;
     }
 }
