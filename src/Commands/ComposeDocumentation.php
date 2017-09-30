@@ -39,13 +39,22 @@ class ComposeDocumentation
      */
     public function get(): array
     {
-        $this->createHeader();
         $this->createRoutes();
         $this->createTags();
         $this->createTagGroups();
 
-        $structure = $this->createHeader();
-        $structure = $this->header;
+        $documentation = Documentation::from([
+            'host'     => strtr(env('APP_URL'), ['http://' => '', 'https://' => '']),
+            'schemes'  => ['https'],
+            'produces' => ['application/json'],
+            'info'     => [
+                'version'     => 'v2',
+                'title'       => 'API Documentation',
+                'description' => 'API v2 endpoints documentation',
+            ],
+        ]);
+
+        $structure = $documentation->toArray();
 
         foreach ($this->routes as $route) {
             if (!isset($structure['paths'][$route['path']])) {
@@ -60,25 +69,6 @@ class ComposeDocumentation
         $structure['x-tagGroups'] = $this->tagGroups;
 
         return $structure;
-    }
-
-    protected function createHeader()
-    {
-        $this->header = [
-            'swagger'     => '2.0',
-            'schemes'     => ['https'],
-            'produces'    => ['application/json'],
-            'host'        => strtr(env('APP_URL'), ['http://' => '', 'https://' => '']),
-            'info'        => [
-                'version'     => 'v2',
-                'title'       => 'API',
-                'description' => 'API documentation and endpoint reference',
-            ],
-            'tags'        => [],
-            'x-tagGroups' => [],
-            'paths'       => [],
-            'definitions' => [],
-        ];
     }
 
     protected function createRoutes()
