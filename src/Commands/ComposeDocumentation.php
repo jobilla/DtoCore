@@ -10,11 +10,6 @@ use Illuminate\Routing\Route;
 class ComposeDocumentation
 {
     /**
-     * @var array
-     */
-    protected $header = [];
-
-    /**
      * @var Collection
      */
     protected $routes = [];
