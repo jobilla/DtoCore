@@ -26,7 +26,8 @@ abstract class RouteFactory
             // Map Laravel Routes to local Route instance
             ->map(function (LaravelRoute $route) use ($includePrefix) {
                 return self::create($route, $includePrefix);
-            });
+            })
+            ->sort();
     }
 
     /**

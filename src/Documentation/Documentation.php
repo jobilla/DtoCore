@@ -67,27 +67,31 @@ class Documentation
     }
 
     /**
-     * @param Collection $routes
+     * @param Collection|Route[] $routes
      *
      * @return array
      */
     protected function getPaths(Collection $routes): array
     {
-        return $routes->mapWithKeys(function (Route $route) {
-            $return = [
+        $outRoutes = [];
+
+        foreach ($routes as $route) {
+            $structure = [
                 'summary' => $route->getPath(),
                 'tags'    => [$route->getTag()],
             ];
 
-            $return['parameters'] = collect($route->getInputs())->map(function (string $inputTag) {
+            $structure['parameters'] = collect($route->getInputs())->map(function (string $inputTag) {
                 return (new IoParameter($inputTag))->getStructure();
             })->toArray();
 
             if ($route->getOutputs()) {
-                $return['responses'][200] = (new IoParameter($route->getOutputs()[0]))->getStructure();
+                $structure['responses'][200] = (new IoParameter($route->getOutputs()[0]))->getStructure();
             }
 
-            return [$route->getPath() => [$route->getHttpMethod() => $return]];
-        })->toArray();
+            $outRoutes[$route->getPath()][$route->getHttpMethod()] = $structure;
+        }
+
+        return $outRoutes;
     }
 }
