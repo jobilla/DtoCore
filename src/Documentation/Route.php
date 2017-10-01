@@ -3,7 +3,6 @@
 namespace Jobilla\DtoCore\Documentation;
 
 use Illuminate\Routing\Route as LaravelRoute;
-use Illuminate\Support\Collection;
 use phpDocumentor\Reflection\DocBlock;
 use phpDocumentor\Reflection\DocBlockFactory;
 
@@ -30,6 +29,7 @@ class Route
 
     /**
      * @param LaravelRoute $laravelRoute
+     * @param string       $prefix
      */
     public function __construct(LaravelRoute $laravelRoute, string $prefix)
     {
@@ -90,7 +90,7 @@ class Route
     }
 
     /**
-     * Get FQCN of controller class
+     * Get full class name of controller
      *
      * @return string
      */
@@ -118,7 +118,7 @@ class Route
     /**
      * Initialize the DocBlock using PHPDocumentor
      */
-    public function initalizeDocBlock()
+    protected function initializeDocBlock()
     {
         $reflect        = new \ReflectionMethod($this->getControllerClass(), $this->getAction());
         $docBlockString = $reflect->getDocComment();
@@ -134,7 +134,7 @@ class Route
      */
     protected function getTagValuesByName(string $name): array
     {
-        !$this->docBlock && $this->initalizeDocBlock();
+        !$this->docBlock && $this->initializeDocBlock();
 
         return collect($this->docBlock->getTagsByName($name))
             ->map(function (DocBlock\Tags\Generic $tag) {

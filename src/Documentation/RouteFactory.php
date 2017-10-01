@@ -8,11 +8,13 @@ use Illuminate\Support\Collection;
 abstract class RouteFactory
 {
     /**
-     * @return Collection|Route[]
+     * @param string $includePrefix
+     *
+     * @return Collection
      */
     public static function fromLaravelRoutes(string $includePrefix): Collection
     {
-        return collect(\Route::getRoutes())
+        return collect(LaravelRoute::getRoutes())
             // Include only routes with given path prefix
             ->filter(function (LaravelRoute $route) use ($includePrefix) {
                 return strpos($route->getPath(), $includePrefix) === 0;
@@ -24,15 +26,12 @@ abstract class RouteFactory
             // Map Laravel Routes to local Route instance
             ->map(function (LaravelRoute $route) use ($includePrefix) {
                 return self::create($route, $includePrefix);
-            })
-            // Filter out empty rows (?)
-            ->filter()
-            // Sort routes (?)
-            ->sort();
+            });
     }
 
     /**
-     * @param Route $route
+     * @param LaravelRoute $route
+     * @param string       $prefix
      *
      * @return Route
      */

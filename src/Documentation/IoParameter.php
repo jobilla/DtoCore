@@ -2,8 +2,6 @@
 
 namespace Jobilla\DtoCore\Documentation;
 
-use phpDocumentor\Reflection\DocBlock\Tags\Generic;
-
 class IoParameter
 {
     /**
@@ -27,15 +25,13 @@ class IoParameter
     public function getStructure(): array
     {
         if (strpos($this->tagValue, '\\') !== false) {
-            return $this->dtoStructure($this->tagValue);
+            return $this->dtoStructure();
         }
 
-        return $this->scalarStructure($this->tagValue);
+        return $this->scalarStructure();
     }
 
     /**
-     * @param $value
-     *
      * @return array
      */
     protected function dtoStructure(): array
@@ -119,7 +115,7 @@ class IoParameter
     /**
      * @param string $type
      *
-     * @return float|int|string
+     * @return float|int|string|array
      */
     protected function getExampleTypeValue(string $type)
     {

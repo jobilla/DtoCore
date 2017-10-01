@@ -7,6 +7,8 @@ use Illuminate\Support\Collection;
 abstract class DefinitionFactory
 {
     /**
+     * @param Collection $routes
+     *
      * @return Collection|Definition[]
      */
     public static function fromRoutes(Collection $routes): Collection
