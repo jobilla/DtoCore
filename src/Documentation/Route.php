@@ -3,6 +3,9 @@
 namespace Jobilla\DtoCore\Documentation;
 
 use Illuminate\Routing\Route as LaravelRoute;
+use Illuminate\Support\Collection;
+use phpDocumentor\Reflection\DocBlock;
+use phpDocumentor\Reflection\DocBlockFactory;
 
 class Route
 {
@@ -19,6 +22,11 @@ class Route
      * @var string
      */
     protected $prefix;
+
+    /**
+     * @var DocBlock
+     */
+    protected $docBlock;
 
     /**
      * @param LaravelRoute $laravelRoute
@@ -88,7 +96,7 @@ class Route
      */
     public function getControllerClass(): string
     {
-        return get_class($route->getController());
+        return get_class($this->laravelRoute->getController());
     }
 
     /**
@@ -105,5 +113,69 @@ class Route
     public function getPrefix(): string
     {
         return $this->prefix;
+    }
+
+    /**
+     * Initialize the DocBlock using PHPDocumentor
+     */
+    public function initalizeDocBlock()
+    {
+        $reflect        = new \ReflectionMethod($this->getControllerClass(), $this->getAction());
+        $docBlockString = $reflect->getDocComment();
+
+        $factory        = DocBlockFactory::createInstance();
+        $this->docBlock = $factory->create($docBlockString);
+    }
+
+    /**
+     * @param string $name
+     *
+     * @return array
+     */
+    protected function getTagValuesByName(string $name): array
+    {
+        !$this->docBlock && $this->initalizeDocBlock();
+
+        return collect($this->docBlock->getTagsByName($name))
+            ->map(function (DocBlock\Tags\Generic $tag) {
+                return $tag->getDescription()->render();
+            })->toArray();
+    }
+
+    /**
+     * @return array|string[]
+     */
+    public function getInputs(): array
+    {
+        return $this->getTagValuesByName('input');
+    }
+
+    /**
+     * @return array|string[]
+     */
+    public function getOutputs(): array
+    {
+        return $this->getTagValuesByName('output');
+    }
+
+    /**
+     * @return array|string[]
+     */
+    public function getIoTags(): array
+    {
+        return array_merge($this->getInputs(), $this->getOutputs());
+    }
+
+    /**
+     * @return array|string[]
+     */
+    public function getIoClasses(): array
+    {
+        return collect($this->getIoTags())
+            ->filter(function (string $tag) {
+                return strpos($tag, '\\') !== false;
+            })
+            ->filter()
+            ->toArray();
     }
 }
