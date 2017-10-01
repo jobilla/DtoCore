@@ -8,10 +8,11 @@ class Documentation
 {
     /**
      * @param string $apiPathPrefix
+     * @param string $apiVersion
      *
      * @return array
      */
-    public function get(string $apiPathPrefix): array
+    public function get(string $apiPathPrefix, string $apiVersion): array
     {
         $routes      = RouteFactory::fromLaravelRoutes($apiPathPrefix);
         $tags        = $this->getTags($routes);
@@ -24,9 +25,9 @@ class Documentation
             'schemes'     => ['https'],
             'produces'    => ['application/json'],
             'info'        => [
-                'version'     => 'v2',
+                'version'     => $apiVersion,
                 'title'       => 'API Documentation',
-                'description' => 'API v2 endpoints documentation',
+                'description' => 'API ' . $apiVersion . ' endpoints documentation',
             ],
             'definitions' => $definitions,
             'tags'        => $tags,

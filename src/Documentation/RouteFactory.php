@@ -14,7 +14,7 @@ abstract class RouteFactory
      */
     public static function fromLaravelRoutes(string $includePrefix): Collection
     {
-        return collect(LaravelRoute::getRoutes())
+        return collect(\Route::getRoutes())
             // Include only routes with given path prefix
             ->filter(function (LaravelRoute $route) use ($includePrefix) {
                 return strpos($route->getPath(), $includePrefix) === 0;
