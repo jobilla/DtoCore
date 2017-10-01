@@ -3,9 +3,13 @@
 namespace Jobilla\DtoCore\Commands;
 
 use Illuminate\Support\Collection;
+use Jobilla\DtoCore\Documentation\RouteFactory;
+use Jobilla\DtoCore\Documentation\Route as Route;
 use Jobilla\DtoCore\Dto\v1\Documentation\Documentation;
+use Jobilla\DtoCore\Dto\v1\Documentation\Tag;
+use Jobilla\DtoCore\Dto\v1\Documentation\TagGroups;
 use Jobilla\DtoCore\DtoAbstract;
-use Illuminate\Routing\Route;
+use Illuminate\Routing\Route as LaravelRoute;
 
 class ComposeDocumentation
 {
@@ -34,106 +38,38 @@ class ComposeDocumentation
      */
     public function get(): array
     {
-        $this->createRoutes();
-        $this->createTags();
-        $this->createTagGroups();
+        $routes = RouteFactory::fromLaravelRoutes('api/v2/');
+
+        $tags = $routes->map(function (Route $route) {
+            return Tag::from(['name' => $route->getTag()])->toArray();
+        })->unique()->values();
+
+        $tagGroups = TagGroups::from([
+            'name' => 'API Endpoints',
+            'tags' => $tags->pluck('name')->toArray(),
+        ])->toArray();
+
+        $paths = [];
+        foreach ($this->routes as $route) {
+            $paths[$route['path']][$route['method']] = $this->getMethodMetaData($route);
+        }
 
         $documentation = Documentation::from([
-            'host'     => strtr(env('APP_URL'), ['http://' => '', 'https://' => '']),
-            'schemes'  => ['https'],
-            'produces' => ['application/json'],
-            'info'     => [
+            'host'        => strtr(env('APP_URL'), ['http://' => '', 'https://' => '']),
+            'schemes'     => ['https'],
+            'produces'    => ['application/json'],
+            'info'        => [
                 'version'     => 'v2',
                 'title'       => 'API Documentation',
                 'description' => 'API v2 endpoints documentation',
             ],
+            'definitions' => $this->definitions,
+            'tags'        => $this->tags,
+            'x-tagGroups' => $this->tagGroups,
+            'paths'       => $paths,
         ]);
 
-        $structure = $documentation->toArray();
-
-        foreach ($this->routes as $route) {
-            if (!isset($structure['paths'][$route['path']])) {
-                $structure['paths'][$route['path']] = [];
-            }
-
-            $structure['paths'][$route['path']][$route['method']] = $this->getMethodMetaData($route);
-        }
-
-        $structure['definitions'] = $this->definitions;
-        $structure['tags']        = $this->tags;
-        $structure['x-tagGroups'] = $this->tagGroups;
-
-        return $structure;
-    }
-
-    protected function createRoutes()
-    {
-        $this->routes = collect(\Route::getRoutes())
-            ->map(function (Route $route) {
-                return $this->getRoute($route);
-            })->filter()->sort();
-    }
-
-    /**
-     * @param Route $route
-     *
-     * @return array|null
-     */
-    function getRoute(Route $route)
-    {
-        if (strpos($route->getPath(), 'api/v2/') !== 0) {
-            return null;
-        }
-
-        if (strpos($route->getPath(), 'api/v2/docs') === 0) {
-            return null;
-        }
-
-        if (strpos($route->getActionName(), '@') === false) {
-            return null;
-        }
-
-        $path     = '/' . $route->getPath();
-        $methods  = $route->getMethods();
-        $methods  = collect($methods)->diff(['HEAD']);
-        $method   = strtolower($methods->first());
-        $action   = substr($route->getActionName(), strpos($route->getActionName(), '@') + 1);
-        $category = substr($path, strlen('/api/v2/'));
-
-        strpos($category, '/') && $category = substr($category, 0, strpos($category, '/'));
-
-        return [
-            'path'       => $path,
-            'method'     => $method,
-            'route'      => $route->getPath(),
-            'controller' => get_class($route->getController()),
-            'action'     => $action,
-            'category'   => $category,
-        ];
-    }
-
-    protected function createTags()
-    {
-        $tags = [];
-
-        foreach ($this->routes as $path => $route) {
-            $category = $route['category'];
-
-            $tags[$category] = [
-                'name' => $category,
-            ];
-        }
-
-        // Avoids having duplicates
-        $this->tags = array_values($tags);
-    }
-
-    protected function createTagGroups()
-    {
-        $this->tagGroups[] = [
-            'name' => 'API Endpoints',
-            'tags' => collect($this->tags)->pluck('name'),
-        ];
+        return $documentation->toArray();
     }
 
     /**
@@ -145,14 +81,6 @@ class ComposeDocumentation
     {
         $reflect  = new \ReflectionMethod($route['controller'], $route['action']);
         $docBlock = $this->parseDocBlock($reflect->getDocComment());
-
-        $return = [
-            'tags'        => [$route['category']],
-            'summary'     => $route['path'],
-            'description' => null,
-            'parameters'  => [],
-            'responses'   => [],
-        ];
 
         // Read title
         if (isset($docBlock[0]) && substr($docBlock[0], 0, 1) != '@') {
