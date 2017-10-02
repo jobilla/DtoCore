@@ -48,7 +48,7 @@ class IoParameter
      * @return array
      * @throws \Exception
      */
-    public function scalarStructure()
+    public function scalarStructure(): array
     {
         list($type, $fieldName) = $this->explodeScalarTagValue();
 
@@ -73,7 +73,7 @@ class IoParameter
         ];
 
         if ($type === 'array') {
-            $parameter['items'] = [
+            $parameters['items'] = [
                 'type' => str_replace('_ids', '_id', $fieldName),
             ];
         }
