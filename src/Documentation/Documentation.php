@@ -7,6 +7,11 @@ use Illuminate\Support\Collection;
 class Documentation
 {
     /**
+     * @var Collection|Route[]
+     */
+    protected $routes;
+
+    /**
      * @param string $apiPathPrefix
      * @param string $apiVersion
      *
@@ -14,10 +19,8 @@ class Documentation
      */
     public function get(string $apiPathPrefix, string $apiVersion): array
     {
-        $routes      = RouteFactory::fromLaravelRoutes($apiPathPrefix);
-        $tags        = $this->getTags($routes);
-        $definitions = $this->getDefinitions($routes);
-        $paths       = $this->getPaths($routes);
+        $this->initRoutes($apiPathPrefix);
+        $tags = $this->getTags();
 
         return [
             'swagger'     => '2.0',
@@ -29,7 +32,7 @@ class Documentation
                 'title'       => 'API Documentation',
                 'description' => 'API ' . $apiVersion . ' endpoints documentation',
             ],
-            'definitions' => $definitions,
+            'definitions' => $this->getDefinitions(),
             'tags'        => $tags,
             'x-tagGroups' => [
                 [
@@ -37,45 +40,51 @@ class Documentation
                     'tags' => collect($tags)->pluck('name')->toArray(),
                 ],
             ],
-            'paths'       => $paths,
+            'paths'       => $this->getPaths(),
         ];
     }
 
     /**
-     * @param $routes
+     * @param string $apiPathPrefix
      *
+     * @return Documentation
+     */
+    protected function initRoutes(string $apiPathPrefix): Documentation
+    {
+        $this->routes = RouteFactory::fromLaravelRoutes($apiPathPrefix);
+
+        return $this;
+    }
+
+    /**
      * @return array
      */
-    protected function getTags(Collection $routes): array
+    protected function getTags(): array
     {
-        return $routes->map(function (Route $route) {
+        return $this->routes->map(function (Route $route) {
             return ['name' => $route->getTag()];
         })->unique()->values()->toArray();
     }
 
     /**
-     * @param Collection $routes
-     *
      * @return array
      */
-    protected function getDefinitions(Collection $routes): array
+    protected function getDefinitions(): array
     {
-        return DefinitionFactory::fromRoutes($routes)
+        return DefinitionFactory::fromRoutes($this->routes)
             ->mapWithKeys(function (Definition $definition) {
                 return [$definition->definitionId() => $definition->getStructure()];
             })->toArray();
     }
 
     /**
-     * @param Collection|Route[] $routes
-     *
      * @return array
      */
-    protected function getPaths(Collection $routes): array
+    protected function getPaths(): array
     {
-        $outRoutes = [];
+        $paths = [];
 
-        foreach ($routes as $route) {
+        foreach ($this->routes as $route) {
             $structure = [
                 'summary' => $route->getPath(),
                 'tags'    => [$route->getTag()],
@@ -89,9 +98,9 @@ class Documentation
                 $structure['responses'][200] = (new IoParameter($route->getOutputs()[0]))->getStructure();
             }
 
-            $outRoutes[$route->getPath()][$route->getHttpMethod()] = $structure;
+            $paths[$route->getPath()][$route->getHttpMethod()] = $structure;
         }
 
-        return $outRoutes;
+        return $paths;
     }
 }
