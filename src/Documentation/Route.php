@@ -44,7 +44,7 @@ class Route
      */
     public function getPath(): string
     {
-        return '/' . $this->laravelRoute->getPath();
+        return '/' . $this->laravelRoute->uri();
     }
 
     /**
@@ -57,7 +57,7 @@ class Route
      */
     public function getHttpMethod(): string
     {
-        $methods = $this->laravelRoute->getMethods();
+        $methods = $this->laravelRoute->methods();
         $methods = collect($methods)->diff(['HEAD']);
 
         return strtolower($methods->first());
