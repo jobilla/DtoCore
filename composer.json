@@ -16,7 +16,7 @@
     }
   },
   "require": {
-    "laravel/framework": "5.4.*",
+    "laravel/framework": "5.5.*",
     "phpdocumentor/reflection-docblock": "^4.1"
   }
 }
