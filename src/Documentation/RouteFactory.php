@@ -17,7 +17,7 @@ abstract class RouteFactory
         return collect(\Route::getRoutes())
             // Include only routes with given path prefix
             ->filter(function (LaravelRoute $route) use ($includePrefix) {
-                return strpos($route->uri(), $includePrefix) === 0;
+                return strpos($route->getPath(), $includePrefix) === 0;
             })
             // Do not include routes that don't have a concrete controller action
             ->filter(function (LaravelRoute $route) use ($includePrefix) {
