@@ -16,6 +16,6 @@
     }
   },
   "require": {
-    "phpdocumentor/reflection-docblock": "^4.1"
+    "phpdocumentor/reflection-docblock": "^3.3"
   }
 }
