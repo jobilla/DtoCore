@@ -107,7 +107,7 @@ abstract class DtoAbstract extends Collection
     {
         collect(array_intersect_key($data, $this->toArray()))
             ->filter(function ($value) {
-                return $value !== null && !empty($value);
+                return !in_array($value, [null, ''], true);
             })
             ->map(function ($value, $key) {
                 if (is_array($value) && $this->getSubtype($key)) {
