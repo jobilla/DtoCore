@@ -2,6 +2,7 @@
 
 namespace Jobilla\DtoCore;
 
+use Exception;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -71,6 +72,13 @@ abstract class DtoAbstract extends Collection
     protected $validation = true;
 
     /**
+     * The FQCN of the model related to this DTO. Used for implicit route binding.
+     *
+     * @var string
+     */
+    protected $model;
+
+    /**
      * @param array $items - NOT used
      */
     public function __construct($items = [])
@@ -101,7 +109,7 @@ abstract class DtoAbstract extends Collection
      * @param array $data
      *
      * @return $this
-     * @throws \Exception
+     * @throws Exception
      */
     public function populateFromArray(array $data): DtoAbstract
     {
@@ -234,5 +242,21 @@ abstract class DtoAbstract extends Collection
         $this->validation = $validation;
 
         return $this;
+    }
+
+    /**
+     * Resolve a route binding by delegating to the underlying resource.
+     *
+     * @param $value
+     * @return $this[]|Collection|DtoAbstract
+     * @throws Exception
+     */
+    public function ResolveRouteBinding($value)
+    {
+        if (! ($this->model && class_exists($this->model))) {
+            throw new Exception('A valid FQCN must be specified to use implicit route binding with DTOs');
+        }
+
+        return static::from((new $this->model)->resolveRouteBinding($value));
     }
 }
