@@ -5,6 +5,7 @@ namespace Jobilla\DtoCore;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use DateTime;
 
 /**
  * DTO Abstract class
@@ -28,7 +29,7 @@ abstract class DtoAbstract extends Collection
      * DTO-s fields default date and datetime formats
      */
     const DATE_FORMAT     = 'Y-m-d';
-    const DATETIME_FORMAT = 'Y-m-d H:i:s';
+    const DATETIME_FORMAT = DateTime::ATOM;
 
     /**
      * DTO fields
