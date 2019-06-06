@@ -2,10 +2,10 @@
 
 namespace Jobilla\DtoCore;
 
+use DateTime;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
-use DateTime;
 
 /**
  * DTO Abstract class
@@ -119,6 +119,18 @@ abstract class DtoAbstract extends Collection
             });
 
         $this->validation && $this->validate();
+
+        return $this;
+    }
+
+    public function disableValidation() {
+        $this->validation = false;
+
+        return $this;
+    }
+
+    public function enableValidation() {
+        $this->validation = true;
 
         return $this;
     }
