@@ -176,7 +176,7 @@ abstract class DtoAbstract extends Collection
      * In this case, the `from` call always returns an instance of Collection (Collection of DTO-s,
      * one DTO, or an empty Collection), which can always be converted to an array for the subtype value.
      *
-     * @param Model|Collection|Model[]|array $source
+     * @param []|Model|Collection|Model[] $source
      *
      * @return $this|Collection|$this[]
      */
