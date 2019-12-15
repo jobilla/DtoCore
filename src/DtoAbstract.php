@@ -76,7 +76,7 @@ abstract class DtoAbstract extends Collection
      */
     public function __construct($items = [])
     {
-        parent::__construct($this->items);
+        parent::__construct(count($items) ? $items : $this->items);
     }
 
     /**
