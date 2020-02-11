@@ -149,7 +149,7 @@ abstract class DtoAbstract extends Collection
      *
      * @return array
      */
-    private function populateSubtypeFromArray(string $key, array $value): array
+    protected function populateSubtypeFromArray(string $key, array $value): array
     {
         if (is_array($this[$key])) {
             return collect($value)->map(function (array $values) use ($key) {
